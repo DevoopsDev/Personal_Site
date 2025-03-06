@@ -41,13 +41,8 @@ jobs:
           USERNAME: ${{ secrets.USERNAME }}
         run: |
           echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -i private_key -o StrictHostKeyChecking=no $USERNAME@$SERVER_IP "
-          cd /path/to/your/app &&
-          git pull origin main &&
-          npm install --production &&
-          npm run build &&
-          pm2 restart all
-          "
+          ssh -i private_key -o StrictHostKeyChecking=no $USERNAME@$SERVER_IP =no $USERNAME@$SERVER_IP "echo 'SSH connection successful'"
+          
 
       - name: Cleanup Private Key
         run: rm -f private_key
