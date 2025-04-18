@@ -1,0 +1,88 @@
+trigger:
+  branches:
+    include:
+      - '*'   # Trigger on all branches
+
+variables:
+- group: StaticWebAppTokens   # 👈 Link this variable group in Azure DevOps > Library
+
+  # Optional: Local variables
+  - name: node_version
+    value: '18.x'
+  - name: app_location
+    value: '/'
+  - name: output_location
+    value: 'build'
+  - name: dev_token
+    value: $(AZURE_STATIC_WEB_APPS_API_TOKEN_DEV)
+  - name: prod_token
+    value: $(AZURE_STATIC_WEB_APPS_API_TOKEN_PROD)
+
+stages:
+
+# ---------------- Stage 1: Build and Test ----------------
+- stage: Build_Test
+  displayName: 'Build and Test'
+  jobs:
+    - job: BuildJob
+      displayName: 'Build React App'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - checkout: self
+
+        - task: NodeTool@0
+          inputs:
+            versionSpec: '$(node_version)'
+
+        - script: |
+            npm install
+            npm test
+            npm run build
+          displayName: 'Install, Test & Build App'
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(output_location)'
+            ArtifactName: 'react-build'
+            publishLocation: 'Container'
+
+# ---------------- Stage 2: Deploy to Staging (Dev) ----------------
+- stage: Deploy_Staging
+  displayName: 'Deploy to Staging (Dev)'
+  dependsOn: Build_Test
+  jobs:
+    - job: DeployDev
+      displayName: 'Deploy to Staging'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - download: current
+          artifact: react-build
+
+        - task: AzureStaticWebApp@0
+          inputs:
+            app_location: '$(System.DefaultWorkingDirectory)/react-build'
+            output_location: ''
+            azure_static_web_apps_api_token: $(dev_token)
+
+# ---------------- Stage 3: Deploy to Production ----------------
+- stage: Deploy_Prod
+  displayName: 'Deploy to Production'
+  dependsOn: Deploy_Staging
+  condition: succeeded()
+  environment: 'production'  # 👈 Go to Pipelines > Environments and create this
+  jobs:
+    - job: DeployProd
+      displayName: 'Deploy to Production'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - download: current
+          artifact: react-build
+
+        - task: AzureStaticWebApp@0
+          inputs:
+            app_location: '$(System.DefaultWorkingDirectory)/react-build'
+            output_location: ''
+            azure_static_web_apps_api_token: $(prod_token)
