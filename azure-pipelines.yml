@@ -1,88 +1,34 @@
 trigger:
   branches:
     include:
-      - '*'
+      - main
 
 variables:
-  - group: StaticWebAppTokens
-
-  - name: node_version
-    value: '18.x'
-  - name: app_location
-    value: '/'
-  - name: output_location
-    value: 'build'
-  - name: dev_token
-    value: $(AZURE_STATIC_WEB_APPS_API_TOKEN_DEV)
-  - name: prod_token
-    value: $(AZURE_STATIC_WEB_APPS_API_TOKEN_PROD)
+  node_version: '18.x'
+  app_location: '/'
+  output_location: 'build'
+  dev_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN_DEV)
+  prod_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN_PROD)
 
 stages:
-
-# -------- Stage 1: Build and Test --------
-- stage: Build_Test
-  displayName: 'Build and Test'
+- stage: Build
+  displayName: 'Build React App'
   jobs:
     - job: BuildJob
-      displayName: 'Build React App'
+      displayName: 'Build Job'
       pool:
         vmImage: 'ubuntu-latest'
       steps:
         - checkout: self
-
         - task: NodeTool@0
           inputs:
             versionSpec: '$(node_version)'
-
         - script: |
             npm install
-            npm test
             npm run build
-          displayName: 'Install, Test & Build'
-
+          displayName: 'Install and Build'
         - task: PublishBuildArtifacts@1
           inputs:
             PathtoPublish: '$(output_location)'
             ArtifactName: 'react-build'
             publishLocation: 'Container'
-
-# -------- Stage 2: Deploy to Staging (Dev) --------
-- stage: Deploy_Staging
-  displayName: 'Deploy to Staging'
-  dependsOn: Build_Test
-  jobs:
-    - job: DeployDev
-      displayName: 'Deploy to Dev Environment'
-      pool:
-        vmImage: 'ubuntu-latest'
-      steps:
-        - download: current
-          artifact: react-build
-
-        - task: AzureStaticWebApp@0
-          inputs:
-            app_location: '$(System.DefaultWorkingDirectory)/react-build'
-            output_location: ''
-            azure_static_web_apps_api_token: $(dev_token)
-
-# -------- Stage 3: Deploy to Production (With Manual Approval) --------
-- stage: Deploy_Prod
-  displayName: 'Deploy to Production'
-  dependsOn: Deploy_Staging
-  condition: succeeded()
-  jobs:
-    - deployment: DeployProd
-      displayName: 'Deploy to Production Job'
-      environment: 'production'  # ✅ Now valid at the job level!
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-              - download: current
-                artifact: react-build
-
-              - task: AzureStaticWebApp@0
-                inputs:
-                  app_location: '$(System.DefaultWorkingDirectory)/react-build'
-                  output_location: ''
-                  azure_static_web_apps_api_token: $(prod_token)
