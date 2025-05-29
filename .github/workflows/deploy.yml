@@ -35,6 +35,9 @@ jobs:
         run: |
           echo "Bucket: ${{ secrets.S3_BUCKET_NAME }}"
           echo "Region: ${{ secrets.AWS_REGION }}"
+      - name: Print full deploy command
+        run:
+         echo "aws s3 sync build/ s3://${{ secrets.S3_BUCKET_NAME }} --region ${{ secrets.AWS_REGION }} --delete"
 
       - name: 🚀 Deploy to S3
         run: aws s3 sync build/ s3://${{ secrets.S3_BUCKET_NAME }} --region ${{ secrets.AWS_REGION }} --delete
